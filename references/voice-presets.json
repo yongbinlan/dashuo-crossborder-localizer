@@ -1,0 +1,14 @@
+{
+  "serena-female-v1": {
+    "path": "assets/serena-female-v1.wav",
+    "sha256": "e3832bf0cb96972737311757228244314ce604b62fdf5d2bd4c982c04862a825",
+    "kind": "synthetic_preset",
+    "voice_type": "female",
+    "provenance": "Locally generated Qwen3-TTS-12Hz-0.6B-CustomVoice Serena preset; concatenated first 3 Chinese cues, 6.72s, 2026-10-20. No human recording. User accepted Malay female audition v5.",
+    "source_audio_sha256": [
+      "eb347f74703366e9acee660d7f0fa3d2a9725e74637a093ba19aad9b3c7c7cfb",
+      "e0321a094b521210e0a1369e1e35f242bdcc889e62a7d8c0cc77d5998d9cfef5",
+      "49c6d68739c93984e0e4b41d156fdac389d9b8842bfb2e7d41ca03505f1e7138"
+    ]
+  }
+}

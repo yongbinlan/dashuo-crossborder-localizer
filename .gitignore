@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv*/
+.env
+.env.*
+auth.json
+credentials.json
+references/local-runtime.json
+models/
+jobs/
+outputs/
+*.log
