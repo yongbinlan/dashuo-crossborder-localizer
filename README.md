@@ -14,6 +14,34 @@
 
 第3条是**线上 Seedance 2.5 编辑交接＋本地配音字幕**。仓库不提供已接通的线上执行器，也不附带线上账户、项目配置或费用额度；需要配置实际编辑通道，并在上传/付费前取得对应授权。旧 `erase` 命令仍是已知会模糊纹理、可能漏字的 MI-GAN 历史入口，不是 Seedance 调用命令。详见[线上去字幕交接](references/online-subtitle-erasure.md)。
 
+## 实际样例截图
+
+以下来自同一条簇绒坐垫案例的真实制作结果，展示已完成的通道1、2。目标语紧邻原中文字幕正上方；点击图片查看原尺寸。截图展示画面和字幕，配音、BGM与响度效果以实际试听为准。
+
+| 简化字幕版 · 马来语 | 配音字幕版 · 马来语女声 v5 | 配音字幕版 · 日语女声 v9 |
+| --- | --- | --- |
+| [<img src="docs/screenshots/subtitles-only-ms.png" width="260" alt="纯翻译字幕版：马来语位于原中文字幕正上方">](docs/screenshots/subtitles-only-ms.png) | [<img src="docs/screenshots/dub-malay-female-v5.png" width="260" alt="马来语女声版：坐垫图案镜头与双字幕">](docs/screenshots/dub-malay-female-v5.png) | [<img src="docs/screenshots/dub-japanese-v9.png" width="260" alt="日语v9：日语字幕位于原中文字幕正上方">](docs/screenshots/dub-japanese-v9.png) |
+
+<details>
+<summary>展开：六市场逐句字幕位置对照</summary>
+
+覆盖新加坡英语/华语、马来西亚马来语/英语、日语和通用英语的六句字幕位置。华语目标保留原中文，避免重复叠字。该图用于查看字幕排版，不作为六种当地口音已通过的证明。
+
+[![六市场逐句字幕排版](docs/screenshots/six-market-subtitle-layout.png)](docs/screenshots/six-market-subtitle-layout.png)
+
+</details>
+
+<details>
+<summary>展开：原片与字幕编码后的纹理对比</summary>
+
+左侧是原片，右侧是v8字幕编码后的同帧原尺寸局部，保留了原图中的景深虚化。v9仅改音轨，沿用相同视频流。该图用于观察坐垫和人物细节；烧录字幕仍有编码损失，不能称完全无损。
+
+[![原片与v8同帧纹理对比](docs/screenshots/source-vs-encoded-texture.png)](docs/screenshots/source-vs-encoded-texture.png)
+
+</details>
+
+截图来源与版本见[样例索引](docs/screenshots/README.md)。
+
 ## 支持的市场与语言
 
 | 配置ID | 用途 |
@@ -34,7 +62,7 @@
 仓库根目录安装 dashuo-crossborder-localizer。
 ```
 
-私有仓库需要当前环境有访问权限。也可下载仓库，将含 `SKILL.md` 的完整目录放入当前用户的 Codex skills 目录；遇到同名版本先备份。装好后检查可用技能列表，必要时刷新会话。
+仓库已公开，可直接下载。也可将含 `SKILL.md` 的完整目录放入当前用户的 Codex skills 目录；遇到同名版本先备份。装好后检查可用技能列表，必要时刷新会话。
 
 **安装 Skill 不等于部署模型。** 核心脚本需要 Python 3.10+、FFmpeg/ffprobe（含libass、libx264、AAC、loudnorm）。语音识别、配音与分离模型各自部署在独立环境，填写真实路径；仓库不带权重、本机配置或密钥，不会在处理视频时自动下载模型。详见[运行环境](references/runtime.md)。
 
