@@ -25,7 +25,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.7.0"
+VERSION = "1.9.1"
 _finish_spec = importlib.util.spec_from_file_location('dashuo_media_finish', ROOT/'scripts/media_finish.py')
 finish = importlib.util.module_from_spec(_finish_spec)
 _finish_spec.loader.exec_module(finish)
@@ -206,6 +206,8 @@ def initialize(args):
     job = {"schema_version":1, "skill_version":VERSION, "mode":mode, "source_language":"zh", "targets":targets,
            "preserve": ["商品、动作、镜头顺序、卖点顺序、价格币种和事实"],
            "glossary":{}, "protected_terms":[], "cloud_allowed":False, "paid_calls_allowed":False,
+           "online_tts_allowed":bool(getattr(args,"allow_online_tts",False)),
+           "paid_tts_allowed":bool(getattr(args,"allow_paid_tts",False)),
            "require_voice_type_review":True,
            "providers": {"asr":{"python":sys.executable, "model_dir":None, "device":"cpu"},
                          "translation":{"engine":"host", "base_url":"http://127.0.0.1:11434/v1", "model":None},
@@ -223,6 +225,14 @@ def initialize(args):
         runtime=read_json(runtime_path)
         for key in ("providers","target_overrides"):
             if key in runtime: job[key]=runtime[key]
+    # New locale routes are explicit plans, never an automatic cloud fallback.
+    # An existing per-target runtime choice always takes precedence.
+    for target in targets:
+        default_engine=PROFILES[target].get("default_engine")
+        base_engine=job["providers"]["tts"]["engine"]
+        if default_engine and base_engine not in {"edge","bailian","provided"} and target not in job.get("target_overrides",{}):
+            if default_engine!=base_engine and (not runtime_path or base_engine not in PROFILES[target].get("local_tts_engines",[])):
+                job.setdefault("target_overrides",{})[target]={"engine":default_engine}
     out.mkdir(parents=True, exist_ok=True)
     save_json(out / "job.json", job)
     return {"job":str(out/"job.json"), "assets":len(assets), "variants":len(assets)*len(targets),
@@ -291,6 +301,8 @@ def build_requests(job_path, job):
             dest = request_path(job_path, asset, target)
             if not dest.exists():
                 save_json(dest, {"source_srt_sha256":sha(srt), "target":target, "reviewed":False,
+                                 "target_language":PROFILES[target]["language"],
+                                 "localization":PROFILES[target].get("localization",{}),
                                  "items":[{"id":c["id"], "source":c["text"], "text":""} for c in cues]})
             written.append(str(dest))
     return {"status":"translation_inputs_ready", "files":written}
@@ -349,6 +361,8 @@ def translate_api(job_path, job, asset, target, cues, srt):
     if key:
         headers["Authorization"] = "Bearer " + key
     prompt = {"target":target, "market":PROFILES[target]["market"], "glossary":job.get("glossary",{}),
+              "language":PROFILES[target]["language"],
+              "localization":PROFILES[target].get("localization",{}),
               "items":[{"id":c["id"], "source":c["text"]} for c in cues]}
     body = {"model":cfg["model"],"temperature":.2,"messages":[
         {"role":"system","content":"Translate Chinese ecommerce spoken copy faithfully and naturally for the target market. Preserve every selling point, negation, number, currency symbol, URL, placeholder and brand. No new claims, price conversion or omitted content. Keep each cue concise without changing meaning. Return JSON only: {\"items\":[{\"id\":1,\"text\":\"translation\"}]}"},
@@ -456,7 +470,7 @@ def subtitle_layout(asset,target):
         if not valid_region(asset.get("cover_region")): raise Blocked("字幕遮盖区域无效")
         return hard,asset["cover_region"]
     # A Chinese target retains the existing Chinese subtitles and avoids duplicate Chinese layers.
-    if hard=="keep" and PROFILES[target]["model_language"]=="zh": return hard,None
+    if hard=="keep" and PROFILES[target]["model_language"]=="zh" and not PROFILES[target].get("translated_chinese_subtitles"): return hard,None
     region=asset.get("target_subtitle_region")
     source=asset.get("source_subtitle_region")
     if region is None and hard=="keep":
@@ -476,8 +490,8 @@ def subtitle_layout(asset,target):
 def display_cues(cues,source_cues,target,hard,mode):
     if mode not in {"bilingual","target_only"}: raise Blocked("字幕模式未知")
     if hard=="keep":
-        return [] if PROFILES[target]["model_language"]=="zh" else cues
-    if mode=="bilingual" and PROFILES[target]["model_language"]!="zh":
+        return [] if PROFILES[target]["model_language"]=="zh" and not PROFILES[target].get("translated_chinese_subtitles") else cues
+    if mode=="bilingual" and (PROFILES[target]["model_language"]!="zh" or PROFILES[target].get("translated_chinese_subtitles")):
         return [{**cue,"text":cue["text"]+"\n"+source["text"]} for cue,source in zip(cues,source_cues)]
     return cues
 
@@ -618,12 +632,27 @@ def background(asset,job,base,work):
 def tts_settings(job,target):
     cfg={**job["providers"]["tts"],**job.get("target_overrides",{}).get(target,{})}
     engine=cfg["engine"]
-    if engine not in {"qwen","chatterbox","edge","provided"}:
+    if engine not in {"qwen","chatterbox","edge","bailian","provided"}:
         raise Blocked("TTS引擎未知")
     if engine=="qwen" and PROFILES[target]["qwen_language"] is None:
-        raise Blocked(f"Qwen本地音色不支持{target}；选择本地Chatterbox，不将马来语冒充印尼语")
-    if engine=="edge" and job.get("cloud_allowed") is not True:
+        raise Blocked(f"Qwen不支持{target}；按该市场支持的引擎配置，不替换语言或自动转云端")
+    if engine=="chatterbox" and "chatterbox" not in PROFILES[target].get("local_tts_engines",["chatterbox"]):
+        raise Blocked(f"Chatterbox不支持{target}；在线TTS须明确授权，或导入该语言的逐句配音")
+    if engine=="edge" and job.get("cloud_allowed") is not True and job.get("online_tts_allowed") is not True:
         raise Blocked("Edge是在线TTS，需要明确允许向微软发送译文，不能标为本地")
+    if engine=="edge":
+        cfg["cloud_allowed"]=True  # Scoped worker permission, not paid translation permission.
+    if engine=="bailian":
+        if not (job.get('online_tts_allowed') is True or job.get('cloud_allowed') is True):
+            raise Blocked('百炼在线TTS需要台词外传授权')
+        if job.get('paid_tts_allowed') is not True:
+            raise Blocked('百炼TTS需要单独paid_tts_allowed授权，不连带开启远程翻译')
+        cfg.update(cloud_allowed=True,paid_tts_allowed=True)
+        import importlib.util
+        spec=importlib.util.spec_from_file_location('dashuo_bailian',ROOT/'scripts/bailian_tts.py')
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        try: module.settings(cfg,PROFILES[target])
+        except module.BailianError as exc:raise Blocked(str(exc)) from None
     if engine=="provided" and not cfg.get("audio_dir"):
         raise Blocked("provided模式需要明确audio_dir，不能默认扫描任务目录")
     if engine in {"qwen","chatterbox"} and (not cfg.get("model_dir") or not Path(cfg["model_dir"]).is_dir()):
@@ -650,7 +679,7 @@ def voice_settings(job,asset,target,cfg,base):
         speaker=cfg.get("speaker")
         if speaker and speaker not in females:
             raise Blocked("已配置的Qwen音色不是已核验女声；选择Serena/Vivian/Ono_Anna/Sohee")
-        cfg["speaker"]=speaker or ("Ono_Anna" if target=="ja-JP" else "Serena")
+        cfg["speaker"]=speaker or PROFILES[target].get("female_speaker") or ("Ono_Anna" if target=="ja-JP" else "Serena")
     elif cfg["engine"]=="chatterbox":
         reference=cfg.get("synthetic_voice_reference",{})
         if not reference and cfg.get('female_voice_preset'):
@@ -669,7 +698,7 @@ def voice_settings(job,asset,target,cfg,base):
     elif cfg["engine"]=="provided":
         if requested!="female" or not cfg.get("voice_evidence"):
             raise Blocked("外部逐句配音须记录女声音色来源并听检；文件名不证明声音类型")
-    elif cfg["engine"]=="edge":
+    elif cfg["engine"] in {"edge","bailian"}:
         # Worker verifies the actual service voice metadata before generating.
         cfg["voice_type"]="female"
     return cfg
@@ -688,7 +717,13 @@ def synthesize(work,cues,cfg,target,base):
     else:
         request=work/"tts-request.json"
         save_json(request,{"cues":cues,"config":cfg,"profile":PROFILES[target],"output":str(dest)})
-        run([cfg.get("python",sys.executable),ROOT/"scripts/tts_worker.py",request],timeout=7200,error_log=work/"tts-error.log")
+        try:
+            run([cfg.get("python",sys.executable),ROOT/"scripts/tts_worker.py",request],timeout=7200,error_log=work/"tts-error.log")
+        except Blocked:
+            failure=work/'tts-failure.json'
+            if cfg['engine']=='bailian' and failure.is_file():
+                raise Blocked('百炼TTS阻断：'+read_json(failure)['reason']) from None
+            raise
     for p in expected:
         if not p.is_file() or p.stat().st_size<100 or duration(p)<.05:
             raise Blocked("TTS返回缺句或空音频")
@@ -813,7 +848,7 @@ def variant_fingerprint(job_path,job,asset,target,srt,translation,cfg):
                        ("subtitle_mode","font","font_size","bottom_margin")}
         return digest({"version":VERSION,"mode":"subtitles_only","implementation":sha(__file__),
                        "source":asset["source_sha256"],"srt":sha(srt),"translation":translation,
-                       "asset":visual_asset,"target":target,"render":visual_render,
+                       "asset":visual_asset,"target":target,"language_profile":PROFILES[target],"render":visual_render,
                        "audio_policy":"all_original_streams_copy_and_verify"})
     bg=asset.get("background")
     audio_files={}
@@ -827,9 +862,9 @@ def variant_fingerprint(job_path,job,asset,target,srt,translation,cfg):
             if p.is_file() and ".cache" not in p.relative_to(directory).parts and p.suffix in {".pt",".bin",".json",".safetensors",".txt"}:
                 st=p.stat();model_files.append([str(p.relative_to(directory)),st.st_size,st.st_mtime_ns,
                                                sha(p) if p.suffix==".json" else None])
-    return digest({"version":VERSION,"implementation":[sha(__file__),sha(ROOT/"scripts/tts_worker.py"),sha(ROOT/"scripts/media_finish.py")],
+    return digest({"version":VERSION,"implementation":[sha(__file__),sha(ROOT/"scripts/tts_worker.py"),sha(ROOT/"scripts/bailian_tts.py"),sha(ROOT/"scripts/media_finish.py")],
                    "model_files_metadata":model_files,"source":asset["source_sha256"],"srt":sha(srt),
-                   "translation":translation,"asset":asset,"target":target,"tts":cfg,
+                   "translation":translation,"asset":asset,"target":target,"language_profile":PROFILES[target],"tts":cfg,
                    "render":job["render"],"background_sha":sha(relative_path(bg,job_path.parent)) if bg else None,
                    "separation":job["providers"].get("separation"),"supplied_audio":audio_files,
                    "bandit_signature":separation_signature(job['providers'].get('separation',{})) if job['render'].get('background_mode')=='bandit' and not bg else None})
@@ -888,6 +923,8 @@ def render_variant(job_path,job,asset,target):
         write_srt(work/"bilingual.srt",bilingual)
         displayed=display_cues(translated,cues,target,hard,job["render"].get("subtitle_mode","bilingual"))
         display_cfg={**job["render"],"max_lines":4 if hard=="none" and job["render"].get("subtitle_mode","bilingual")=="bilingual" else 2}
+        if PROFILES[target].get("subtitle_font") and display_cfg.get("font","Microsoft YaHei")=="Microsoft YaHei":
+            display_cfg["font"]=PROFILES[target]["subtitle_font"]
         write_ass(work/"captions.ass",displayed,width,height,display_cfg,region,
                   bottom_aligned=hard=="keep")
         # Static relative ASS filename: no path or subtitle text enters an ffmpeg expression.
@@ -1015,7 +1052,7 @@ def record_review(args):
 
 def doctor(args):
     report={"version":VERSION,"python":sys.executable,"ffmpeg":shutil.which("ffmpeg"),"ffprobe":shutil.which("ffprobe"),"network_calls":0}
-    report["packages_current_python"]={m:bool(importlib.util.find_spec(m)) for m in ["faster_whisper","qwen_tts","chatterbox","edge_tts"]}
+    report["packages_current_python"]={m:bool(importlib.util.find_spec(m)) for m in ["faster_whisper","qwen_tts","chatterbox","edge_tts","dashscope"]}
     if args.job:
         path,job=load_job(args.job)
         readiness=[]
@@ -1040,6 +1077,8 @@ def main():
     i=sub.add_parser("init"); i.add_argument("--input",required=True);i.add_argument("--output",required=True);i.add_argument("--targets",required=True);i.add_argument("--runtime")
     i.add_argument("--mode",choices=MODES,default="dub",help="dub:完整配音；subtitles_only:仅加字幕并保留全部原音轨")
     i.add_argument('--no-runtime',action='store_true',help='不读取本机环境文件；用于独立部署或无模型测试')
+    i.add_argument('--allow-online-tts',action='store_true',help='仅在已有用户授权时允许在线配音传出台词；不授权付费翻译或上传视频')
+    i.add_argument('--allow-paid-tts',action='store_true',help='已有用户授权才启用百炼计费TTS；仍需--allow-online-tts，不授权远程翻译')
     for name in ("transcribe","requests","run"):
         s=sub.add_parser(name);s.add_argument("--job",required=True)
     r=sub.add_parser("review");r.add_argument("--variant",required=True);r.add_argument("--evidence",required=True)

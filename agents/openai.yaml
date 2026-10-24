@@ -1,4 +1,4 @@
 interface:
   display_name: "大硕跨境电商批量翻译配音"
-  short_description: "保BGM/音效批量翻译配音，支持仅字幕；去原字幕交接线上Seedance 2.5，原女声配女声"
-  default_prompt: "使用 $dashuo-crossborder-localizer 按所选通道制作：默认保BGM/音效配音加双字幕，原女声用女声；仅字幕保留全部原声；明确去原字幕时交接线上Seedance 2.5编辑，核对实际模型/费用授权、残字与商品纹理。原有通道保留，不自动投放。"
+  short_description: "日韩泰菲马新印尼多语字幕配音，保BGM音效与响度；按授权选择本地或在线音色"
+  default_prompt: "使用 $dashuo-crossborder-localizer 按目标市场选择语言、地区表达和女声音色，核实本地或在线引擎及文本外传授权；保留BGM音效并校准响度，或仅字幕保留原声，明确去原字幕时另走线上编辑交接，保留原有通道。"

@@ -1,14 +1,247 @@
 {
   "schema_version": 1,
   "profiles": {
-    "en-SG": {"market":"新加坡","language":"英语","model_language":"en","qwen_language":"English","speaker":"Ryan","edge_voice":"en-SG-LunaNeural","accent":"本地模型为通用英语；新加坡音色需另行试听，不能仅凭区域代码宣称当地口音"},
-    "zh-SG": {"market":"新加坡","language":"华语","model_language":"zh","qwen_language":"Chinese","speaker":"Serena","edge_voice":"zh-CN-XiaoxiaoNeural","accent":"普通话；不自动仿造新加坡华语口音"},
-    "ms-MY": {"market":"马来西亚","language":"马来语","model_language":"ms","qwen_language":null,"speaker":null,"edge_voice":"ms-MY-YasminNeural","accent":"Chatterbox支持马来语；本地马来西亚口音须试听"},
-    "en-MY": {"market":"马来西亚","language":"英语","model_language":"en","qwen_language":"English","speaker":"Ryan","edge_voice":"en-US-JennyNeural","accent":"通用英语，未声称马来西亚英语口音"},
-    "ja-JP": {"market":"日本","language":"日语","model_language":"ja","qwen_language":"Japanese","speaker":"Ono_Anna","edge_voice":"ja-JP-NanamiNeural","accent":"日语，发音与自然度须实际试听"},
-    "en-US": {"market":"通用英语/美国","language":"英语","model_language":"en","qwen_language":"English","speaker":"Ryan","edge_voice":"en-US-JennyNeural","accent":"本地模型不承诺具体地区口音"},
-    "zh-CN": {"market":"中国大陆/对照","language":"普通话","model_language":"zh","qwen_language":"Chinese","speaker":"Serena","edge_voice":"zh-CN-XiaoxiaoNeural","accent":"普通话"}
+    "en-SG": {
+      "market": "新加坡",
+      "language": "英语",
+      "model_language": "en",
+      "qwen_language": "English",
+      "speaker": "Ryan",
+      "edge_voice": "en-SG-LunaNeural",
+      "accent": "本地模型为通用英语；新加坡音色需另行试听，不能仅凭区域代码宣称当地口音",
+      "local_tts_engines": [
+        "qwen",
+        "chatterbox"
+      ],
+      "female_speaker": "Serena",
+      "localization": {
+        "script": "native",
+        "guidance": "本地模型为通用英语；新加坡音色需另行试听，不能仅凭区域代码宣称当地口音；保留原稿事实和品牌，使用自然电商表达。"
+      }
+    },
+    "zh-SG": {
+      "market": "新加坡",
+      "language": "华语",
+      "model_language": "zh",
+      "qwen_language": "Chinese",
+      "speaker": "Serena",
+      "edge_voice": "zh-CN-XiaoxiaoNeural",
+      "accent": "普通话；不自动仿造新加坡华语口音",
+      "local_tts_engines": [
+        "qwen",
+        "chatterbox"
+      ],
+      "female_speaker": "Serena",
+      "localization": {
+        "script": "Simplified Chinese",
+        "guidance": "普通话；不自动仿造新加坡华语口音；保留原稿事实和品牌，使用自然电商表达。"
+      }
+    },
+    "ms-MY": {
+      "market": "马来西亚",
+      "language": "马来语",
+      "model_language": "ms",
+      "qwen_language": null,
+      "speaker": null,
+      "edge_voice": "ms-MY-YasminNeural",
+      "accent": "Chatterbox支持马来语；本地马来西亚口音须试听",
+      "local_tts_engines": [
+        "chatterbox"
+      ],
+      "female_speaker": null,
+      "localization": {
+        "script": "native",
+        "guidance": "Chatterbox支持马来语；本地马来西亚口音须试听；保留原稿事实和品牌，使用自然电商表达。"
+      }
+    },
+    "en-MY": {
+      "market": "马来西亚",
+      "language": "英语",
+      "model_language": "en",
+      "qwen_language": "English",
+      "speaker": "Ryan",
+      "edge_voice": "en-US-JennyNeural",
+      "accent": "通用英语，未声称马来西亚英语口音",
+      "local_tts_engines": [
+        "qwen",
+        "chatterbox"
+      ],
+      "female_speaker": "Serena",
+      "localization": {
+        "script": "native",
+        "guidance": "通用英语，未声称马来西亚英语口音；保留原稿事实和品牌，使用自然电商表达。"
+      }
+    },
+    "ja-JP": {
+      "market": "日本",
+      "language": "日语",
+      "model_language": "ja",
+      "qwen_language": "Japanese",
+      "speaker": "Ono_Anna",
+      "edge_voice": "ja-JP-NanamiNeural",
+      "accent": "日语，发音与自然度须实际试听",
+      "local_tts_engines": [
+        "qwen",
+        "chatterbox"
+      ],
+      "female_speaker": "Ono_Anna",
+      "localization": {
+        "script": "native",
+        "guidance": "日语，发音与自然度须实际试听；保留原稿事实和品牌，使用自然电商表达。"
+      }
+    },
+    "en-US": {
+      "market": "通用英语/美国",
+      "language": "英语",
+      "model_language": "en",
+      "qwen_language": "English",
+      "speaker": "Ryan",
+      "edge_voice": "en-US-JennyNeural",
+      "accent": "本地模型不承诺具体地区口音",
+      "local_tts_engines": [
+        "qwen",
+        "chatterbox"
+      ],
+      "female_speaker": "Serena",
+      "localization": {
+        "script": "native",
+        "guidance": "本地模型不承诺具体地区口音；保留原稿事实和品牌，使用自然电商表达。"
+      }
+    },
+    "zh-CN": {
+      "market": "中国大陆/对照",
+      "language": "普通话",
+      "model_language": "zh",
+      "qwen_language": "Chinese",
+      "speaker": "Serena",
+      "edge_voice": "zh-CN-XiaoxiaoNeural",
+      "accent": "普通话",
+      "local_tts_engines": [
+        "qwen",
+        "chatterbox"
+      ],
+      "female_speaker": "Serena",
+      "localization": {
+        "script": "Simplified Chinese",
+        "guidance": "普通话；保留原稿事实和品牌，使用自然电商表达。"
+      }
+    },
+    "ko-KR": {
+      "market": "韩国",
+      "language": "韩语",
+      "model_language": "ko",
+      "qwen_language": "Korean",
+      "speaker": "Sohee",
+      "female_speaker": "Sohee",
+      "edge_voice": "ko-KR-SunHiNeural",
+      "local_tts_engines": [
+        "qwen",
+        "chatterbox"
+      ],
+      "default_engine": "qwen",
+      "subtitle_font": "Malgun Gothic",
+      "accent": "Qwen原生韩语女声Sohee；当地自然度需实际试听。",
+      "localization": {
+        "script": "Hangul",
+        "guidance": "自然韩语电商口播，保持敬语和品牌/型号一致，不使用日语或中文音译代替韩语。"
+      }
+    },
+    "th-TH": {
+      "market": "泰国",
+      "language": "泰语",
+      "model_language": "th",
+      "qwen_language": null,
+      "speaker": null,
+      "female_speaker": null,
+      "edge_voice": "th-TH-PremwadeeNeural",
+      "local_tts_engines": [],
+      "default_engine": "bailian",
+      "subtitle_font": "Leelawadee UI",
+      "accent": "在线泰语音色；本地Qwen/Chatterbox不支持，不以其他语言代替。",
+      "localization": {
+        "script": "Thai",
+        "guidance": "使用自然泰语及合适礼貌用语；字幕检查泰文组合字符和断行，不能靠添加空格伪造分词。"
+      },
+      "bailian": {
+        "family": "sambert",
+        "model": "sambert-waan-v1",
+        "voice": "sambert-waan-v1",
+        "voice_type": "female",
+        "language_boost": "Thai",
+        "voice_source": "https://help.aliyun.com/zh/model-studio/sambert-python-sdk"
+      }
+    },
+    "fil-PH": {
+      "market": "菲律宾",
+      "language": "菲律宾语（Filipino/Tagalog）",
+      "model_language": "fil",
+      "qwen_language": null,
+      "speaker": null,
+      "female_speaker": null,
+      "edge_voice": "fil-PH-BlessicaNeural",
+      "local_tts_engines": [],
+      "default_engine": "edge",
+      "accent": "默认菲律宾地区女声Blessica（fil-PH-BlessicaNeural），用户2026-10-24认可本轮同句试听更自然；不包含宿务语，不以新加坡/马来语或英语替代。",
+      "localization": {
+        "script": "Latin",
+        "guidance": "默认Filipino/Tagalog；品牌与常见借词可保留，不能把整段英语当菲律宾语译文，不默认过度Taglish。"
+      },
+      "bailian": {
+        "family": "minimax",
+        "model": "MiniMax/speech-2.8-turbo",
+        "voice": "female-shaonv",
+        "voice_type": "female",
+        "language_boost": "Filipino",
+        "voice_source": "https://platform.minimax.cn/docs/faq/system-voice-id"
+      }
+    },
+    "id-ID": {
+      "market": "印度尼西亚",
+      "language": "印尼语",
+      "model_language": "id",
+      "qwen_language": null,
+      "speaker": null,
+      "female_speaker": null,
+      "edge_voice": "id-ID-GadisNeural",
+      "local_tts_engines": [],
+      "default_engine": "bailian",
+      "accent": "在线印尼语音色；不得送入马来语本地模型冒充印尼语。",
+      "localization": {
+        "script": "Latin",
+        "guidance": "使用印度尼西亚Bahasa Indonesia用词，不能套用马来西亚马来语译文。"
+      },
+      "bailian": {
+        "family": "sambert",
+        "model": "sambert-indah-v1",
+        "voice": "sambert-indah-v1",
+        "voice_type": "female",
+        "language_boost": "Indonesian",
+        "voice_source": "https://help.aliyun.com/zh/model-studio/sambert-python-sdk"
+      }
+    },
+    "zh-TW": {
+      "market": "台湾市场",
+      "language": "台湾国语／繁体中文",
+      "model_language": "zh",
+      "qwen_language": "Chinese",
+      "speaker": "Serena",
+      "female_speaker": "Serena",
+      "edge_voice": "zh-TW-HsiaoChenNeural",
+      "local_tts_engines": [
+        "qwen",
+        "chatterbox"
+      ],
+      "default_engine": "qwen",
+      "translated_chinese_subtitles": true,
+      "accent": "本地为普通话女声；台湾国语地区音色需显式在线选择并试听，不承诺本地台湾口音。",
+      "localization": {
+        "script": "Traditional Chinese",
+        "guidance": "字幕使用繁体中文及台湾常用词，非机械繁简转换；既有简中硬字幕保留，繁中译文仍须显示在其上方；不等同闽南语。"
+      }
+    }
   },
-  "pending_languages": ["th-TH", "vi-VN", "id-ID", "fil-PH"],
-  "note": "待扩展语种需先商定引擎及部署/数据成本，不用翻译模型支持冒充配音支持。"
+  "pending_languages": [
+    "vi-VN"
+  ],
+  "note": "v1.9.1：菲律宾语默认Edge Blessica女声，已获当前用户试听认可；泰语/印尼语百炼Sambert及其他本地路线保留。MiniMax仅作显式可选配置，不自动后备；各市场技术/听审状态分开。"
 }

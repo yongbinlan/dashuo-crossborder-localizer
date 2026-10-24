@@ -37,7 +37,7 @@ python -X utf8 scripts/download_models.py whisper-tiny --output 'D:/models/faste
 
 下载器只访问上述官方仓库，记录具体修订、校验LFS SHA-256/配置Git blob身份；断网保留part文件，需显式重跑恢复，不自动反复请求。下载完成不等于模型加载或配音通过。tiny用于轻量烟测，复杂电商原稿建议部署更高质量模型并人工校对。
 
-若已经有Qwen3-TTS-CustomVoice本地模型和环境，可配置engine=qwen，语言仅英语、华语、日语。对应speaker默认Ryan/Serena/Ono_Anna，模型和实际音色兼容性需烟测。不使用参考音频克隆声音。
+若已有Qwen3-TTS-CustomVoice模型和环境，可配置engine=qwen，当前市场路由覆盖英语、华语、日语、韩语。对应speaker为Ryan/Serena/Ono_Anna/Sohee；原女声时英语也改女声。模型和实际音色兼容性需烟测，不默认参考真人音频克隆。泰/菲/印尼不在Qwen和Chatterbox当前支持范围，显式阻断误选，不自动转云。
 
 本包针对Chatterbox 0.1.7的实际加载问题做了进程内适配：非中文不提前初始化没有使用的中文仓颉分词器，避免马来语启动时隐式下载/写用户目录。中文Chatterbox仍需明确提供本地`pkuseg_model_dir`和仓颉文件；本机华语默认走已部署Qwen。适配不修改第三方包文件，不把缺词法模型静默降级成另一语言。
 
@@ -53,9 +53,13 @@ python -X utf8 scripts/download_models.py whisper-tiny --output 'D:/models/faste
 
 旧任务明确选Demucs时，使用已有独立demucs环境和含模型/YAML的本地repo，脚本用 `python -m demucs.separate --repo 本地目录 --two-stems vocals`，不使用自动下载路径。语音、敲击声和BGM的分离无法保证无损，必须实际听检。
 
-## 可选在线TTS
+## 在线TTS：按语种选择（v1.9.1）
 
-`edge`通过edge-tts调用微软在线TTS，不是离线引擎；先明确授权传出台词，再设置 `cloud_allowed: true`。音色通过实时列表核对，不可用即停。依赖服务可用性及使用条款；不宣称永久免费、商用授权或稳定SLA。新加坡英语可试听en-SG-LunaNeural，华语暂无本地口音保证。远程付费翻译需要额外费用授权。
+配置`engine: bailian`，Key只读`DASHSCOPE_API_KEY`环境变量，模型/系统音色按`languages.json`绑定。泰语和印尼语沿用原Sambert渠道；Filipino默认独立Edge环境中的Blessica女声，MiniMax仅保留为明确选择的可选配置。百炼账户需先开通对应产品。实现、权限和错误恢复见[百炼在线TTS](bailian-tts.md)。
+
+本机复用已有Python 3.12和DashScope SDK 1.25.20，无新增模型下载或安装。移机可在Codex专用虚拟环境安装`dashscope`并填写`python`；不把Key写入runtime。仅台词传出，不上传视频或真人样本。
+
+菲律宾语默认`edge`＋`fil-PH-BlessicaNeural`，复用已有独立`.venv-edge`；只需任务online_tts_allowed，不需paid_tts_allowed。它不是百炼失败的自动后备；原MiniMax失败不自动换音色，Blessica失败也不自动转百炼。地区口音不能仅靠国家标签保证，首次选音仍需试听。
 
 ## 常用命令
 

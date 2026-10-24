@@ -44,6 +44,18 @@ def main():
     cfg=request["config"]; profile=request["profile"]; cues=request["cues"]
     output=Path(request["output"]); output.mkdir(parents=True,exist_ok=True)
     engine=cfg["engine"]
+    if engine=="bailian":
+        from bailian_tts import generate, BailianError
+        try:
+            generate(cues,cfg,profile,output,output.parent.parent/'paid-tts-cache')
+        except BailianError as exc:
+            (output.parent/'tts-failure.json').write_text(json.dumps({'provider':'aliyun-bailian','reason':str(exc)},ensure_ascii=False),encoding='utf-8')
+            raise
+        return
+    if engine=="edge" and cfg.get("cloud_allowed") is not True:
+        raise RuntimeError("Online TTS requires explicit text-transfer permission")
+    if engine in {"qwen","chatterbox"} and engine not in profile.get("local_tts_engines",["qwen","chatterbox"]):
+        raise RuntimeError("The selected local model does not support this target language")
     generation={}
     reference=cfg.get('synthetic_voice_reference')
     if reference is not None:
@@ -109,6 +121,9 @@ def main():
             available={v["ShortName"] for v in voices}
             voice=cfg.get("voice") or profile["edge_voice"]
             if voice not in available: raise RuntimeError("Voice unavailable; do not silently change locale")
+            expected_locale=profile["edge_voice"].rsplit("-",1)[0]
+            if next(v for v in voices if v["ShortName"]==voice).get("Locale")!=expected_locale:
+                raise RuntimeError("Selected online voice has a different target locale")
             if cfg.get('voice_type')=='female' and next(v for v in voices if v['ShortName']==voice).get('Gender')!='Female':
                 raise RuntimeError('Selected online voice is not female')
             for cue in cues:

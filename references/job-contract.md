@@ -32,7 +32,7 @@ Chatterbox的女声配置示例（参考音频来自本地合成预设，不是�
 | providers.translation.engine | `host`：由当前Agent准备译文；`openai_compatible`：调用配置模型做初译，生成后仍需复核 |
 | providers.translation.base_url/model | 例如本地 `http://127.0.0.1:11434/v1` 和实际已部署模型ID；默认不查询/启动服务 |
 | providers.translation.api_key_env | 可选，Key只读取该环境变量，默认 `DASHUO_TRANSLATION_API_KEY` |
-| providers.tts | 仅dub需要：`engine`: chatterbox/qwen/edge/provided；`python`和本地`model_dir`；`device`: cpu/cuda。subtitles_only不检查或加载此项 |
+| providers.tts | 仅dub需要：`engine`: chatterbox/qwen/bailian/edge/provided；`python`和本地`model_dir`；`device`: cpu/cuda。subtitles_only不检查或加载此项 |
 | target_overrides | 如仅 `ms-MY` 用chatterbox，其余用qwen。每项覆盖同名TTS配置，不能改变目标语种 |
 | providers.tts.female_voice_preset | 例如`serena-female-v1`：只在选择女声时读取包内合成参考；本机马来语已配置。也可在synthetic_voice_reference中显式设置preset；身份仍由包内SHA绑定 |
 | assets[].source_srt | 校对原稿路径；为空则本地ASR。人工修订先保存旧版并显式绑定新稿 |
@@ -54,7 +54,9 @@ Chatterbox的女声配置示例（参考音频来自本地合成预设，不是�
 | render.subtitle_mode | 当前用户默认bilingual：有原中文硬字幕则只新增目标语，干净原片显示目标语＋中文；华语目标不重复中文。另输出translated.srt与bilingual.srt |
 | glossary | 品牌、商品术语和各语言译法。Agent翻译时使用，自动初译也传模型 |
 | protected_terms | 需要原样保留的品牌/型号。只放不应翻译的原词，不要锁住需翻译的普通卖点 |
-| cloud_allowed/paid_calls_allowed | 默认false。单独允许在线TTS不等于允许远程付费翻译；显式true须源于用户当前有效授权 |
+| online_tts_allowed | 默认false；授权后`init --allow-online-tts`只开启在线配音文本外传，worker也核验此权限；不会开启付费翻译或上传原视频。runtime文件不授予此权限 |
+| paid_tts_allowed | 默认false；百炼计费TTS单独授权，初始化`--allow-paid-tts`；同时需要online_tts_allowed或旧cloud_allowed。不会开启远程付费翻译 |
+| cloud_allowed/paid_calls_allowed | 默认false。旧任务cloud_allowed仍可授权Edge；单独online_tts_allowed不满足远程付费翻译门槛。显式true须源于用户当前有效授权 |
 
 ## 译文格式
 
@@ -74,6 +76,12 @@ Chatterbox的女声配置示例（参考音频来自本地合成预设，不是�
 
 `provided`允许用户提供已录好的逐句音频，`audio_dir`内文件名为 `00001.wav`, `00002.wav`等，对应当前译文。音频有改动会建立新成片版本，内容与授权仍须看听复核；不能拿测试音调冒充配音。
 
+## v1.8多市场扩展
+
+可选目标及逐语种本地支持以`languages.json`为单一来源。新增`ko-KR,th-TH,fil-PH,id-ID,zh-TW`，原有目标保留。初始化仅给新增目标安排默认引擎，不覆盖runtime中已有的逐目标配置；v1.9.1菲律宾语默认Edge Blessica，只需台词外传许可；泰语/印尼语仍默认百炼，还需付费TTS许可。韩语女声默认Sohee；马来语与印尼语不可互换。
+
+翻译请求新增`target_language`及`localization`供host核稿；OpenAI兼容初译也传入相同市场约束。市场配置变更进入版本指纹，不能复用旧声音/字形配置的结果。韩国默认字幕字体Malgun Gothic，泰语Leelawadee UI；移机后核对字体存在与实际字符显示，显式自定字体保留。泰语长句若无合适分词需人工换行或调整布局，不截字/乱断组合字符。台湾繁中目标即使保留简中硬字幕也会新增繁中译文。
+
 ## 仅字幕输出
 
 `init --mode subtitles_only` 后仍使用 `transcribe`（已有SRT仅核对、不需要ASR环境）、`requests`、`run`。原稿和译文复核要求相同；沿原字幕时间轴，不执行配音速度检查或延用下一段空白。
@@ -87,5 +95,6 @@ Chatterbox的女声配置示例（参考音频来自本地合成预设，不是�
 - 同任务只允许一个执行者；遗留`.lock`先核实PID，不自动删锁。
 - 成功版本可按输入指纹和产物身份复用；任何输入变化建立vN。
 - 配音新版字幕ASS与时轴不变时另行复用已核验的视频流，仅替换音轨；字幕变更则从绑定原片编码一次。无新增字幕时直接复制原视频流。证据在picture-preservation.json，不把流复制称为恢复原画质。
+- 百炼TTS按文本、模型和音色在目标目录下建立跨vN的paid-tts-cache；请求先独占登记，成功音频复用、未知/失败状态停止，改译文或新建任务不是免费重试承诺。恢复先核对原请求和费用，保留记录后按用户有效范围显式处理，不自动清理或重复提交。详见[百炼在线TTS](bailian-tts.md)。
 - 翻译请求发出即落地request-state；超时结果未知时不自动再调。确认原请求失败/未产生结果后人工清理该请求状态才可重新调用；保留费用记录。
 - `configured`/`translation_inputs_ready`不是成片。`verification_incomplete`表示技术生成通过但实际检查欠缺；`pending_user_review`只在实际检查记录齐全后出现；代码不产生`approved`或`released`。
