@@ -49,6 +49,11 @@ class FinishingFlowTests(unittest.TestCase):
         self.assertEqual(result['status'],'verification_incomplete',result)
         folder=Path(result['receipt']).parent
         self.assertEqual(m.finish.video_identity(self.video),m.finish.video_identity(folder/'localized.mp4'))
+        sync=m.read_json(folder/'subtitle-sync.json')
+        self.assertEqual(sync['caption_count'],0)
+        self.assertEqual(sync['timing_basis'],'retained_source_hardsubs_no_new_caption_layer')
+        self.assertEqual(sync['sync_status'],'verification_incomplete')
+        self.assertFalse(sync['audio_full_playback'])
 
     def test_invalid_loudness_target_blocks_before_creating_a_video(self):
         self.job['render']['loudness']={'delivery_tp':0}

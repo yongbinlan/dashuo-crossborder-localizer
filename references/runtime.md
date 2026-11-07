@@ -1,5 +1,7 @@
 # 安装与运行
 
+下述Python/模型/CLI环境仅用于自有分支。选择[CapCut分支](capcut-workflow.md)无需部署本地TTS，按实际CapCut版本和账号核实功能；当前Skill未接入CapCut API或无人值守批量执行器。
+
 核心CLI只需Python 3.10+标准库和FFmpeg/ffprobe（含libass、libx264、AAC、loudnorm）。v1.7响度处理不增加Python依赖或模型；默认与输出证据见[响度与画质](loudness-and-picture.md)。不共享修改其他Agent的Python环境。下列依赖各自装在单独环境；安装包和模型下载是网络操作，但不会提交业务视频。
 
 init自动读取已存在的references/local-runtime.json；`--runtime`指定其他环境，`--no-runtime`用于移机空配置或不加载真实模型的测试。显式参数互斥；仅字幕即使读到环境配置也不校验或运行TTS/分离器。

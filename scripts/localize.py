@@ -25,10 +25,13 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.9.1"
+VERSION = "1.9.8"
 _finish_spec = importlib.util.spec_from_file_location('dashuo_media_finish', ROOT/'scripts/media_finish.py')
 finish = importlib.util.module_from_spec(_finish_spec)
 _finish_spec.loader.exec_module(finish)
+_sync_spec = importlib.util.spec_from_file_location('dashuo_subtitle_sync', ROOT/'scripts/subtitle_sync.py')
+subtitle_sync = importlib.util.module_from_spec(_sync_spec)
+_sync_spec.loader.exec_module(subtitle_sync)
 MODES = ("dub", "subtitles_only")
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
 PROFILES = json.loads((ROOT / "references/languages.json").read_text(encoding="utf-8"))["profiles"]
@@ -214,7 +217,7 @@ def initialize(args):
                          "tts":{"engine":"chatterbox", "python":sys.executable, "model_dir":None, "device":"cpu"}},
            "render":{"background_mode":"bandit", "background_gain":0.7, "max_speedup":1.10,
                      "loudness":{"enabled":True,"voice_i":-20.,"voice_tp":-3.,"delivery_i":-16.,"delivery_tp":-1.5,"lra":9.},
-                     "use_following_silence":True,"trim_edge_silence":True,"subtitle_mode":"bilingual",
+                     "use_following_silence":True,"trim_edge_silence":True,"subtitle_mode":"target_only",
                      "font":"Microsoft YaHei", "font_size":None, "bottom_margin":0.06},
            "assets":assets}
     runtime_path=getattr(args,'runtime',None)
@@ -862,10 +865,15 @@ def variant_fingerprint(job_path,job,asset,target,srt,translation,cfg):
             if p.is_file() and ".cache" not in p.relative_to(directory).parts and p.suffix in {".pt",".bin",".json",".safetensors",".txt"}:
                 st=p.stat();model_files.append([str(p.relative_to(directory)),st.st_size,st.st_mtime_ns,
                                                sha(p) if p.suffix==".json" else None])
-    return digest({"version":VERSION,"implementation":[sha(__file__),sha(ROOT/"scripts/tts_worker.py"),sha(ROOT/"scripts/bailian_tts.py"),sha(ROOT/"scripts/media_finish.py")],
+    alignment_path=job['render'].get('subtitle_alignment_evidence')
+    try:
+        alignment_identity=subtitle_sync.evidence_identity(relative_path(alignment_path,job_path.parent)) if alignment_path else None
+    except (ValueError,KeyError,OSError) as e:
+        raise Blocked(f'字幕对齐依据无效: {e}') from e
+    return digest({"version":VERSION,"implementation":[sha(__file__),sha(ROOT/"scripts/tts_worker.py"),sha(ROOT/"scripts/bailian_tts.py"),sha(ROOT/"scripts/media_finish.py"),sha(ROOT/"scripts/subtitle_sync.py")],
                    "model_files_metadata":model_files,"source":asset["source_sha256"],"srt":sha(srt),
                    "translation":translation,"asset":asset,"target":target,"language_profile":PROFILES[target],"tts":cfg,
-                   "render":job["render"],"background_sha":sha(relative_path(bg,job_path.parent)) if bg else None,
+                   "render":job["render"],"subtitle_alignment":alignment_identity,"background_sha":sha(relative_path(bg,job_path.parent)) if bg else None,
                    "separation":job["providers"].get("separation"),"supplied_audio":audio_files,
                    "bandit_signature":separation_signature(job['providers'].get('separation',{})) if job['render'].get('background_mode')=='bandit' and not bg else None})
 
@@ -940,6 +948,22 @@ def render_variant(job_path,job,asset,target):
                      "-pix_fmt","yuv420p","-c:a","copy","-movflags","+faststart","-map_metadata","0",work/"localized.mp4"]
         else:
             mixed=mix_dub(work,bg,dub,total,job['render'])
+            alignment_path=job['render'].get('subtitle_alignment_evidence')
+            if not displayed:
+                # Existing Chinese hardsubs are retained without a new ASS layer.
+                # Their timing is not validated by the generated-caption guard.
+                sync_evidence={'schema_version':1,'caption_count':0,
+                    'timing_basis':'retained_source_hardsubs_no_new_caption_layer',
+                    'sync_status':'verification_incomplete','audio_full_playback':False,
+                    'limitations':['Original burned-in caption timing still requires audiovisual review.']}
+            else:
+                try:
+                    sync_evidence=subtitle_sync.check(work/'captions.ass',displayed,translated,
+                        work/'dub-calibrated.wav' if (work/'dub-calibrated.wav').is_file() else dub,
+                        total,relative_path(alignment_path,job_path.parent) if alignment_path else None)
+                except (ValueError,KeyError,OSError) as e:
+                    raise Blocked(f'字幕与实际配音时轴检查失败: {e}') from e
+            save_json(work/'subtitle-sync.json',sync_evidence)
             picture_sig=finish.picture_signature(video,work/'captions.ass',vf)
             copied_from=finish.find_picture(parent,picture_sig) if vf else video
             command=['ffmpeg','-v','error','-n','-i',copied_from or video,'-i',mixed,'-map','0:v:0','-map','1:a:0']
@@ -964,7 +988,7 @@ def render_variant(job_path,job,asset,target):
         for i,t in enumerate(sorted({min(max((c['start']+c['end'])/2,0),max(total-.05,0)) for c in translated})):
             run(["ffmpeg","-v","error","-n","-ss",str(t),"-i",output,"-frames:v","1",work/f"preview-{i+1:03}.png"])
         artifacts={p.name:sha(p) for p in work.iterdir() if p.suffix in {".mp4",".srt",".ass",".wav",".png"}
-                   or p.name in {"audio-preservation.json","timing.json","speech-preparation.json","pacing-report.json","mix-receipt.json","separation-reference.json","loudness-receipt.json","picture-preservation.json"}}
+                   or p.name in {"audio-preservation.json","timing.json","speech-preparation.json","pacing-report.json","mix-receipt.json","separation-reference.json","loudness-receipt.json","picture-preservation.json","subtitle-sync.json"}}
         receipt={"task_intent":"中文电商视频本地化，保留商品与原片节奏", "target_environment":target,
                  "acceptance_criteria":["完整译文","真实配音","字幕可读","原片尺寸时长","视听与语义检查"],
                  "artifacts":{name:str(work/name) for name in artifacts},"checks_run":["subtitle_structure_and_source_binding","number_currency_and_terms","speech_slot_fitting_no_cut","full_decode","dimensions_duration_audio","preview_extraction"],
@@ -975,6 +999,8 @@ def render_variant(job_path,job,asset,target):
                  "artifact_sha256":artifacts,"publication_authorized":False}
         receipt["mode"]=mode
         if mode=='dub':
+            receipt['checks_run'].append('actual_ASS_timeline_vs_audio_bound_alignment_or_clip_slots')
+            receipt['evidence']['subtitle_timing']=sync_evidence
             receipt['checks_run']+=['voice_and_delivery_loudness_matching','final_encoded_loudness_true_peak','picture_encoding_lineage_or_verified_stream_copy']
             receipt['evidence'].update({'background':'bandit_three_stem' if isinstance(bg,dict) else receipt['evidence']['background'],
              'loudness':loudness_evidence,'picture':picture_evidence,

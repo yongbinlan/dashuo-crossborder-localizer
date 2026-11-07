@@ -60,8 +60,11 @@ def normalize(path,out,target,peak,lra):
     # Inputs are PCM WAVs; time_base and duration_ts give exact sample length.
     num,den=map(int,info['time_base'].split('/'))
     frames=round(int(info['duration_ts'])*num/den*rate)
-    first=measure(path,out.with_suffix('.pass1.log'),target,peak,lra)
-    filt=(f'loudnorm=I={target}:TP={peak}:LRA={lra}:'
+    # loudnorm may oversample internally; the return to the original rate can
+    # create inter-sample peaks. Leave processing headroom, keep nominal checks.
+    working_peak=peak-.5
+    first=measure(path,out.with_suffix('.pass1.log'),target,working_peak,lra)
+    filt=(f'loudnorm=I={target}:TP={working_peak}:LRA={lra}:'
           f'measured_I={first["input_i"]}:measured_TP={first["input_tp"]}:'
           f'measured_LRA={first["input_lra"]}:measured_thresh={first["input_thresh"]}:'
           f'offset={first["target_offset"]}:linear=true:print_format=json,'
@@ -79,7 +82,8 @@ def normalize(path,out,target,peak,lra):
     if abs(float(actual['input_i'])-target)>1 or float(actual['input_tp'])>peak+.2:
         raise FinishError('响度校准未达到目标；保留日志，不自动重试')
     return {'input':str(path),'input_sha256':sha(path),'output':str(out),'output_sha256':sha(out),
-            'target_i':target,'target_tp':peak,'applied_mode':applied['normalization_type'],
+            'target_i':target,'target_tp':peak,'working_peak':working_peak,'resampling_headroom_db':.5,
+            'applied_mode':applied['normalization_type'],
             'before':first,'after':actual,'samples':frames,'sample_rate':rate,'channels':channels,
             'timeline_policy':'same sample count; no speed change or internal cuts'}
 

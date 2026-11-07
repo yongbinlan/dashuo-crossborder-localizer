@@ -1,4 +1,4 @@
 interface:
   display_name: "大硕跨境电商批量翻译配音"
-  short_description: "日韩泰菲马新印尼多语字幕配音，保BGM音效与响度；按授权选择本地或在线音色"
-  default_prompt: "使用 $dashuo-crossborder-localizer 按目标市场选择语言、地区表达和女声音色，核实本地或在线引擎及文本外传授权；保留BGM音效并校准响度，或仅字幕保留原声，明确去原字幕时另走线上编辑交接，保留原有通道。"
+  short_description: "多语字幕配音：自有流程或CapCut由用户选择，保BGM音效，纯净版仅目标语字幕"
+  default_prompt: "使用 $dashuo-crossborder-localizer，先让我选择自有配音流程或CapCut分支，明确要求时再同片对比；按目标市场核实语言女声、保留BGM音效，纯净版仅目标语字幕，去原硬字幕另走线上交接。"

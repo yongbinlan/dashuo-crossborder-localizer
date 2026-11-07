@@ -1,5 +1,7 @@
 # 任务契约
 
+本契约与`job.json`仅适用于自有分支。CapCut是独立[操作与交接分支](capcut-workflow.md)，不支持`engine: capcut`或`mode: capcut`，不由`localize.py run`执行。新配音任务先由用户选定分支；本机默认TTS配置不代替用户选择。
+
 所有路径支持绝对路径；视频、字幕、背景声和预录配音目录的相对路径基于job.json所在目录。模型目录、Python解释器和本地分离repo采用绝对路径。不要把密码、Key、授权头或真人参考录音内容写入任务。
 
 ## 女声匹配（v1.4）
@@ -41,7 +43,7 @@ Chatterbox的女声配置示例（参考音频来自本地合成预设，不是�
 | providers.separation | bandit需要engine/python/repo/checkpoint/checkpoint_sha256/device，详见保声通道。旧demucs仍使用python/repo/model。仅字幕不需要 |
 | render.music_gain_db/sfx_gain_db | BandIt独立增益可选覆盖，-24到18dB；默认按RMS/峰值预算。修改后另建版本并重听，不对旧provided背景生效 |
 | render.loudness | dub默认启用两遍旁白与混音响度校准，并测最终AAC。enabled/voice_i/voice_tp/delivery_i/delivery_tp/lra默认true/-20/-3/-16/-1.5/9，准确容差、范围及证据见[响度与画质](loudness-and-picture.md)。仅字幕不处理 |
-| assets[].hard_subtitles | `unknown`阻断；`keep`为保留已有中文字幕，只叠目标语；`none`为干净原片，默认生成双字幕；`cover`未获当前用户采用 |
+| assets[].hard_subtitles | `unknown`阻断；`keep`为保留已有中文字幕，只叠目标语；`none`为干净原片，新建任务默认仅生成目标语字幕；`cover`未获当前用户采用 |
 | assets[].source_subtitle_region | 原中文区域`[x,y,width,height]`，相对坐标；y取实际文字上沿。keep默认继承原区域的水平中心与宽度，新增区域下沿距离中文上沿为画面高度0.008（1920高约15px），预留高度0.16；目标语下沿固定、换行向上展开，区域重叠即阻断 |
 | assets[].target_subtitle_region | 可手动指定新增字幕区域；keep按区域下沿锚定。当前用户要求紧邻原字幕正上方，不沿用旧画面顶部配置；删除此字段即可按source_subtitle_region自动定位，不能遮中文或商品。原字幕位置变化的素材应先核对各句，静态区域不能冒充自动追踪 |
 | assets[].cover_region | cover使用 `[x,y,width,height]`，范围0到1，不能覆盖产品/手部/关键信息 |
@@ -51,7 +53,7 @@ Chatterbox的女声配置示例（参考音频来自本地合成预设，不是�
 | providers.tts.cfg_weight/exaggeration/temperature | Chatterbox可选生成参数，分别允许0—1、0—2、0.05—2；默认保持上游0.5/0.5/0.8。参数不是语速保证；Qwen不使用这些Chatterbox字段，0.6B不把风格指令当作可靠控制 |
 | render.use_following_silence | dub默认true：目标语可延用该句后的原有空白，但不越过下一句、不延长/变速视频；要求逐句时间轴锁定时设false。仅字幕沿原稿时间轴 |
 | render.font/font_size/bottom_margin | 字体默认微软雅黑；字体大小按分辨率计算，可手动指定；画面和字体缺字仍须实际检查 |
-| render.subtitle_mode | 当前用户默认bilingual：有原中文硬字幕则只新增目标语，干净原片显示目标语＋中文；华语目标不重复中文。另输出translated.srt与bilingual.srt |
+| render.subtitle_mode | v1.9.3新建任务默认`target_only`：干净原片仅显示目标语，不叠加中文；有原中文硬字幕仍保留原画面并只新增目标语，华语目标不重复中文。`bilingual`仍为显式可选项；旧任务显式bilingual或缺字段保留原义，切单语须另存新版并显式改为target_only。translated.srt为目标语；bilingual.srt仅作独立对照文件，不因文件存在就在画面叠加中文 |
 | glossary | 品牌、商品术语和各语言译法。Agent翻译时使用，自动初译也传模型 |
 | protected_terms | 需要原样保留的品牌/型号。只放不应翻译的原词，不要锁住需翻译的普通卖点 |
 | online_tts_allowed | 默认false；授权后`init --allow-online-tts`只开启在线配音文本外传，worker也核验此权限；不会开启付费翻译或上传原视频。runtime文件不授予此权限 |
@@ -91,6 +93,8 @@ Chatterbox的女声配置示例（参考音频来自本地合成预设，不是�
 通道进入版本指纹；仅字幕和配音产物互不冒用，切换通道建立新版本。仅字幕不因无关的TTS模型、背景底轨或配音语速配置变化重复合成。
 
 ## 重跑和状态
+
+完整配音若使用独立于逐句配音时轴的ASS，可设置`render.subtitle_alignment_evidence`为本任务相对或绝对JSON路径；必须按[同步证据格式](subtitle-sync.md)绑定本次`dub-calibrated.wav`（未校准时为`dub.wav`）、实际ASS条目及完整目标文本。证据和来源SHA进入缓存指纹；缺依据或来源过期时停止，不沿用旧缓存证明新声音同步。该字段不生成字幕时间戳，也不自动更换引擎或调用ASR。
 
 - 同任务只允许一个执行者；遗留`.lock`先核实PID，不自动删锁。
 - 成功版本可按输入指纹和产物身份复用；任何输入变化建立vN。
